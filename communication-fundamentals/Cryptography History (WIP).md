@@ -1,4 +1,4 @@
-# TLS Handshake
+# Cryptography History
 
 ## Goal
 To clearly explain the origination of TLS and how TLS works today. 
