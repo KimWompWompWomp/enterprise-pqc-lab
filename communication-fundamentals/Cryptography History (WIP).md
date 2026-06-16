@@ -15,7 +15,7 @@ The National Security Agency (NSA) launched a project called the Secure Data Net
 NIST came out with SDNS which provided standardization of the security services into vendor products.
 
 
-SP3 and SP4 were two of many protocols that came out of the SDNS project that were created to securely transmit messages between systems. SP3 is a SNICP (subnetwork independent convergence protocol) 
+SP3 and SP4 were two of many protocols that came out of the SDNS project that were created to securely transmit messages between systems. SP3 is a SNICP (subnetwork independent convergence protocol). A convergence protocol is a layer that allows for the higher level applications to communicate with one snother without relying on the lower level technology. The document NIST IR 90-4250 explains the esrly protolcs thst were designed to protect the esrly ages of the internet. The document introduces elements of the modern PKI which js astronishing since the document itself is from the 90's.
 
 
 
