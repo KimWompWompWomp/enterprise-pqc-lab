@@ -31,7 +31,9 @@ How do two people who have never met create a shared secret over an insecure cha
 
 Before 1976, that sounded almost impossible.
 
+Before public-key cryptography, most encryption was symmetric encryption.
 
+That means the same secret key is used to encrypt and decrypt.
 
 
 
