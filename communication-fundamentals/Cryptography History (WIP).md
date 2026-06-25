@@ -35,7 +35,12 @@ Before public-key cryptography, most encryption was symmetric encryption.
 
 That means the same secret key is used to encrypt and decrypt.
 
+Example:
 
+Alice and Bob both know secret key K.
+
+Alice uses K to encrypt.
+Bob uses K to decrypt.
 
 
 
