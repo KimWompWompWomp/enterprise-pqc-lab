@@ -21,6 +21,10 @@ Cryptography started as clever writing tricks, then became a tool for religion, 
 
 The earliest known examples are usually traced to ancient Egypt, around 1900 BCE, where scribes used non-standard hieroglyphs in tomb inscriptions. This was not “encryption” in the modern military or mathematical sense, but it shows an early instinct to obscure meaning and make writing understandable only to certain people.
 
+2. 1976: public-key cryptography changes the game
+
+In 1976, Whitfield Diffie and Martin Hellman published “New Directions in Cryptography.” This introduced the public idea of asymmetric cryptography: a system where a person can have a public key and a private key, and the public key does not need to be kept secret.  
+
 The core issue was key distribution. If every pair of people, systems, banks, militaries, servers, or applications needed a shared secret, the number of keys explodes. You do not yet have PKI here. You only have the problem PKI will eventually help solve.
 
 IN 1976, Ralph Merkle published one of the first protocosl to securely generate a symmetric cryptographic key over a public channel. Before this, systems that were communicating to one another had to know about each other in order for them to trust them. With DH, it makes it possible for two systems to securely establish a shared secret key over a insecure channel. 
