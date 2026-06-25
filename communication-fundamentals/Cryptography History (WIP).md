@@ -13,7 +13,11 @@ Background: Much of this happened before I was born. A lot of the technologies t
 
 1. Before the 1970s: encryption required shared secrets
 
-For most of cryptographic history, encryption was symmetric: both sides needed the same secret key. That works if two parties can safely meet beforehand, but it breaks down at scale.
+For most of cryptographic history, encryption was symmetric: both sides needed the same secret key. That works if two parties can safely meet beforehand, but it breaks down at scale. 
+
+The earliest signs of cryptography go back thousands of years, long before computers, PKI, TLS, or modern encryption. The basic human need was the same: hide meaning from anyone who was not supposed to understand the message.
+
+The earliest known examples are usually traced to ancient Egypt, around 1900 BCE, where scribes used non-standard hieroglyphs in tomb inscriptions. This was not “encryption” in the modern military or mathematical sense, but it shows an early instinct to obscure meaning and make writing understandable only to certain people.
 
 The core issue was key distribution. If every pair of people, systems, banks, militaries, servers, or applications needed a shared secret, the number of keys explodes. You do not yet have PKI here. You only have the problem PKI will eventually help solve.
 
