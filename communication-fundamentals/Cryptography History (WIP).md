@@ -47,7 +47,25 @@ That works fine if Alice and Bob can safely meet in person and exchange the key.
 Imagine a company with 10 people. Every pair of people needs a unique shared secret if they want private communication.
 
 The number of unique pairwise keys grows fast:
+n people need n(n-1)/2 shared keys
+So:
+People
 
+Pairwise shared keys needed
+
+1045
+
+100
+
+4,950
+
+1,000
+
+499,500
+
+1,000,000
+
+~500 billion
 
 
 The core issue was key distribution. If every pair of people, systems, banks, militaries, servers, or applications needed a shared secret, the number of keys explodes. You do not yet have PKI here. You only have the problem PKI will eventually help solve.
