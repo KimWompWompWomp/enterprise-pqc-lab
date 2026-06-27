@@ -67,8 +67,24 @@ Pairwise shared keys needed
 
 ~500 billion
 
-
 The core issue was key distribution. If every pair of people, systems, banks, militaries, servers, or applications needed a shared secret, the number of keys explodes. You do not yet have PKI here. You only have the problem PKI will eventually help solve.
+
+So what did Diffie and Hellman change? 
+They introduced two concepts: 
+The two parties will use two keys to encrypt and decrypt messages - A private key, that is kept secret from anyone else, decrypt messages, and a public key, that is shared with whole world, that is use to encrypt the messages. 
+
+What does this provide? 
+This provides confidentiality by having a shared secret between two parties, you are able to decrypt your message without having the risk of it being intercepted and decrypted by a threat actor. Think back again to the early ages where everyone used symmetrical cryptography to relay a hidden message to a particular person. They had a shared secret on how to read/decrypt the encrypted message. The introduction of public key crypotgraphy allowed entities to exchange messages in a secure way while also seamlessly exchanging the secret over a insecure channel to create a shared secret.
+
+It important to note that the paper that  Diffie Hellman released in 1976, "New directions in Cryptography", created the foundational concepts of public key cryptography. This is as result, outputted the Diffie-Hellman Key Exchange. In more detail, what did Diffie Hellman actually introduce? A very popular model that people like to share to simplify the model is the following: 
+
+<img width="362" height="552" alt="image" src="https://github.com/user-attachments/assets/25085846-f55a-4c4d-8fa2-5acf25e8d423" />
+
+So that is how two parties could retain the cofidentiality of their messages. By using the public key and mixing in their private components and sharing that over to the other party to create a shared secret, they are able to establish a secure channel of communication without having the secure channel already present. 
+
+##How was Digital Signatures Introduced by Diffie Hellman? 
+
+Fro digital signatures, we have to think about the keys inversely. 
 
 IN 1976, Ralph Merkle published one of the first protocosl to securely generate a symmetric cryptographic key over a public channel. Before this, systems that were communicating to one another had to know about each other in order for them to trust them. With DH, it makes it possible for two systems to securely establish a shared secret key over a insecure channel. 
 
