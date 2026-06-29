@@ -1,0 +1,1360 @@
+# How ML-KEM Works
+
+## Overview
+
+**ML-KEM** stands for **Module-Lattice-Based Key-Encapsulation Mechanism**.
+
+It is a post-quantum key establishment algorithm standardized by NIST in **FIPS 203**. ML-KEM is derived from the CRYSTALS-Kyber algorithm, which was selected during NIST’s Post-Quantum Cryptography standardization process.
+
+ML-KEM is designed to help two parties establish a shared secret over an insecure network, even in a future world where attackers may have access to cryptographically relevant quantum computers.
+
+At a high level, ML-KEM answers this question:
+
+> How can two parties establish shared secret key material without relying on RSA, classic Diffie-Hellman, or elliptic-curve Diffie-Hellman?
+
+This matters because RSA, finite-field Diffie-Hellman, and elliptic-curve Diffie-Hellman are vulnerable to sufficiently powerful quantum computers running Shor’s algorithm.
+
+ML-KEM is intended to be a quantum-resistant alternative for key establishment.
+
+---
+
+## The Short Version
+
+ML-KEM is not a digital signature algorithm.
+
+ML-KEM is not used to prove identity.
+
+ML-KEM is not used to directly encrypt large amounts of application data.
+
+ML-KEM is used to establish a shared secret key.
+
+That shared secret can then be used with symmetric cryptography, such as AES or ChaCha20, to protect actual communication.
+
+A simplified view:
+
+```text
+ML-KEM establishes shared secret key material.
+
+Symmetric encryption protects the actual data.
+
+Digital signatures or certificates authenticate the parties.
+```
+
+In a TLS-like context, ML-KEM would be used in the key establishment portion of the handshake, while certificates and signatures would still be needed for authentication.
+
+---
+
+## Why ML-KEM Exists
+
+Modern secure communication often relies on key exchange.
+
+For example, in TLS today, many systems use **ECDHE**, which stands for **Elliptic Curve Diffie-Hellman Ephemeral**.
+
+ECDHE allows two parties to establish shared session keys and provides forward secrecy.
+
+However, ECDHE depends on the hardness of the elliptic curve discrete logarithm problem.
+
+A sufficiently capable quantum computer could break that assumption.
+
+That creates a problem for data that needs to remain confidential for many years.
+
+This is the **harvest now, decrypt later** threat model.
+
+An attacker may record encrypted traffic today, store it, and try to decrypt it in the future once better cryptanalytic tools or quantum computers become available.
+
+ML-KEM was created to address this kind of risk by providing a post-quantum method for shared secret establishment.
+
+---
+
+## What Is a KEM?
+
+A **KEM**, or **Key Encapsulation Mechanism**, is a cryptographic mechanism used to establish a shared secret between two parties.
+
+A KEM usually has three main algorithms:
+
+```text
+1. KeyGen
+2. Encaps
+3. Decaps
+```
+
+These mean:
+
+| KEM Operation | Purpose                                                                          |
+| ------------- | -------------------------------------------------------------------------------- |
+| KeyGen        | Generates an encapsulation key and a decapsulation key                           |
+| Encaps        | Uses the encapsulation key to create a ciphertext and shared secret              |
+| Decaps        | Uses the decapsulation key to recover the same shared secret from the ciphertext |
+
+A KEM is different from traditional Diffie-Hellman.
+
+In Diffie-Hellman, both sides exchange public values and combine them to derive the same shared secret.
+
+In a KEM, one side has a public encapsulation key. The other side uses that public key to encapsulate a secret and sends back a ciphertext. The owner of the private decapsulation key uses that ciphertext to derive the same secret.
+
+A simplified KEM flow:
+
+```text
+Receiver generates:
+- Encapsulation key
+- Decapsulation key
+
+Sender uses receiver's encapsulation key:
+- Creates ciphertext
+- Creates shared secret
+
+Receiver uses decapsulation key:
+- Decapsulates ciphertext
+- Recovers same shared secret
+```
+
+The ciphertext is safe to send over a public channel.
+
+The shared secret should remain known only to the sender and receiver.
+
+---
+
+## ML-KEM Terminology
+
+NIST uses precise terminology for ML-KEM.
+
+Instead of saying “public key” and “private key,” FIPS 203 uses:
+
+| Common Term              | ML-KEM Term       |
+| ------------------------ | ----------------- |
+| Public key               | Encapsulation key |
+| Private key              | Decapsulation key |
+| Shared secret            | Shared secret key |
+| Encrypted secret package | Ciphertext        |
+
+This terminology is useful because ML-KEM is not traditional public-key encryption.
+
+The encapsulation key is used to create a ciphertext and shared secret.
+
+The decapsulation key is used to recover the same shared secret from the ciphertext.
+
+---
+
+## The Main ML-KEM Flow
+
+At a high level, ML-KEM works like this:
+
+```text
+1. Bob generates an ML-KEM key pair.
+2. Bob publishes or shares his encapsulation key.
+3. Alice uses Bob's encapsulation key to encapsulate a shared secret.
+4. Alice receives:
+   - A ciphertext
+   - A shared secret key
+5. Alice sends the ciphertext to Bob.
+6. Bob uses his decapsulation key to decapsulate the ciphertext.
+7. Bob recovers the same shared secret key.
+8. Alice and Bob now share the same secret.
+```
+
+The important point is that Alice does not send the shared secret directly.
+
+Alice sends a ciphertext that allows only Bob, as the holder of the decapsulation key, to derive the same shared secret.
+
+---
+
+## Simple Analogy
+
+Imagine Bob has a special public lockbox.
+
+Anyone can use the lockbox to place a secret inside and lock it.
+
+Only Bob has the private ability to open it.
+
+Alice wants to establish a shared secret with Bob.
+
+She does this:
+
+```text
+1. Alice gets Bob's public lockbox.
+2. Alice creates a secret.
+3. Alice locks the secret inside the box.
+4. Alice sends the locked box to Bob.
+5. Bob opens the box using his private key.
+6. Alice and Bob now know the same secret.
+```
+
+ML-KEM is more complicated than this, but the analogy captures the main point:
+
+> The sender creates a shared secret and a ciphertext. The receiver uses the decapsulation key to recover the same shared secret from that ciphertext.
+
+---
+
+## ML-KEM vs. Diffie-Hellman
+
+ML-KEM and Diffie-Hellman both help establish shared secrets, but they do it differently.
+
+| Concept                  | Diffie-Hellman / ECDHE                                  | ML-KEM                                        |
+| ------------------------ | ------------------------------------------------------- | --------------------------------------------- |
+| Type                     | Key agreement                                           | Key encapsulation mechanism                   |
+| Main action              | Both sides contribute key shares                        | One side encapsulates to the other side’s key |
+| Output                   | Shared secret                                           | Shared secret                                 |
+| Classical security basis | Discrete logarithm or elliptic curve discrete logarithm | Module Learning With Errors                   |
+| Quantum-resistant?       | No                                                      | Believed to be quantum-resistant              |
+| Used for signatures?     | No                                                      | No                                            |
+| Used for authentication? | No, not by itself                                       | No, not by itself                             |
+
+The cleanest distinction:
+
+```text
+Diffie-Hellman:
+Both sides exchange public values and derive a shared secret.
+
+ML-KEM:
+One side encapsulates a shared secret to the other side's encapsulation key.
+```
+
+Both still need authentication from another mechanism if the protocol needs to know who is on the other side.
+
+---
+
+## ML-KEM vs. Digital Signatures
+
+This is a critical distinction.
+
+ML-KEM is for **key establishment**.
+
+Digital signature algorithms are for **authentication and integrity**.
+
+ML-KEM does not prove who sent a message.
+
+ML-KEM does not sign software.
+
+ML-KEM does not validate a certificate.
+
+ML-KEM does not provide non-repudiation.
+
+For post-quantum signatures, NIST standardized separate algorithms, including:
+
+```text
+ML-DSA
+SLH-DSA
+```
+
+So the post-quantum world separates the jobs:
+
+| Job                | Classical Example        | Post-Quantum Example |
+| ------------------ | ------------------------ | -------------------- |
+| Key establishment  | ECDHE, RSA key transport | ML-KEM               |
+| Digital signatures | RSA, ECDSA, EdDSA        | ML-DSA, SLH-DSA      |
+| Bulk encryption    | AES, ChaCha20            | AES, ChaCha20        |
+
+ML-KEM replaces or supplements the key establishment layer, not the signature layer.
+
+---
+
+## The Security Foundation: Module Learning With Errors
+
+ML-KEM is based on the hardness of the **Module Learning With Errors** problem, usually abbreviated as **MLWE**.
+
+This belongs to the broader family of **lattice-based cryptography**.
+
+The intuition behind MLWE is that it is easy to create certain noisy mathematical relationships, but hard for an attacker to recover the underlying secret from those noisy relationships.
+
+A simplified way to think about it:
+
+```text
+Clean linear equation:
+A * s = t
+
+Noisy equation:
+A * s + e = t
+```
+
+Where:
+
+```text
+A = public mathematical structure
+s = secret
+e = small error/noise
+t = public value
+```
+
+The noise is important.
+
+Without the noise, solving for the secret may be straightforward.
+
+With carefully chosen noise, recovering the secret becomes computationally hard.
+
+The “module” part means the math is structured in a way that is more efficient than using fully general lattices.
+
+This structure helps make the algorithm practical while still relying on a hard lattice problem.
+
+---
+
+## Why Noise Matters
+
+The “errors” in Learning With Errors are not mistakes.
+
+They are intentionally added noise.
+
+This noise hides the secret.
+
+A rough analogy:
+
+```text
+Without noise:
+The attacker sees a clean pattern and can solve for the secret.
+
+With noise:
+The attacker sees a distorted pattern and cannot efficiently recover the secret.
+```
+
+ML-KEM uses this concept to build a cryptographic system where the public information does not reveal the secret.
+
+The owner of the correct decapsulation key can still recover the intended shared secret.
+
+An attacker without the decapsulation key should not be able to recover it.
+
+---
+
+## The Mathematical Objects Used by ML-KEM
+
+ML-KEM uses polynomial and modular arithmetic.
+
+Some important constants and parameters include:
+
+```text
+n = 256
+q = 3329
+```
+
+At a high level:
+
+* `n` relates to the degree of the polynomials used.
+* `q` is the modulus used for arithmetic.
+* The algorithm works with polynomial vectors and matrices.
+* The parameter `k` changes depending on the selected ML-KEM security level.
+
+ML-KEM has three parameter sets:
+
+| Parameter Set | Security Category | k Value |
+| ------------- | ----------------: | ------: |
+| ML-KEM-512    |        Category 1 |       2 |
+| ML-KEM-768    |        Category 3 |       3 |
+| ML-KEM-1024   |        Category 5 |       4 |
+
+A higher parameter set generally means stronger security but larger keys, larger ciphertexts, and more computation.
+
+---
+
+## The Three ML-KEM Parameter Sets
+
+ML-KEM defines three parameter sets.
+
+| Parameter Set | Encapsulation Key | Decapsulation Key |  Ciphertext | Shared Secret |
+| ------------- | ----------------: | ----------------: | ----------: | ------------: |
+| ML-KEM-512    |         800 bytes |       1,632 bytes |   768 bytes |      32 bytes |
+| ML-KEM-768    |       1,184 bytes |       2,400 bytes | 1,088 bytes |      32 bytes |
+| ML-KEM-1024   |       1,568 bytes |       3,168 bytes | 1,568 bytes |      32 bytes |
+
+The shared secret is always 32 bytes, or 256 bits.
+
+The larger parameter sets increase security strength but also increase key and ciphertext sizes.
+
+A practical way to think about the choices:
+
+| Parameter Set | Practical Meaning                             |
+| ------------- | --------------------------------------------- |
+| ML-KEM-512    | Smaller and faster, lower security category   |
+| ML-KEM-768    | Common balanced choice                        |
+| ML-KEM-1024   | Larger and stronger, higher security category |
+
+In many real-world protocol discussions, ML-KEM-768 is often treated as the default balanced option, but final selection depends on the system, security requirements, compliance needs, and protocol profile.
+
+---
+
+## ML-KEM Has Three Main Algorithms
+
+ML-KEM consists of three main algorithms:
+
+```text
+ML-KEM.KeyGen()
+ML-KEM.Encaps()
+ML-KEM.Decaps()
+```
+
+These are the core functions that make the KEM work.
+
+---
+
+# 1. ML-KEM Key Generation
+
+## Purpose
+
+Key generation creates the key pair.
+
+The receiver generates:
+
+```text
+Encapsulation key
+Decapsulation key
+```
+
+The encapsulation key can be shared publicly.
+
+The decapsulation key must remain secret.
+
+## Simplified Flow
+
+```text
+Bob runs ML-KEM.KeyGen()
+
+Output:
+- ek = encapsulation key
+- dk = decapsulation key
+```
+
+Bob can publish or send `ek`.
+
+Bob must protect `dk`.
+
+## What the Encapsulation Key Does
+
+The encapsulation key allows someone else to create:
+
+```text
+- a ciphertext
+- a shared secret
+```
+
+The person using the encapsulation key does not need Bob’s decapsulation key.
+
+## What the Decapsulation Key Does
+
+The decapsulation key allows Bob to process the ciphertext and recover the same shared secret.
+
+If an attacker gets the decapsulation key, they may be able to decapsulate ciphertexts intended for Bob.
+
+So the decapsulation key must be protected like any sensitive private key.
+
+---
+
+# 2. ML-KEM Encapsulation
+
+## Purpose
+
+Encapsulation is performed by the party that wants to establish a shared secret with the owner of the encapsulation key.
+
+Assume Alice wants to establish a secret with Bob.
+
+Alice has Bob’s encapsulation key.
+
+Alice runs:
+
+```text
+ML-KEM.Encaps(ek)
+```
+
+The output is:
+
+```text
+c = ciphertext
+K = shared secret key
+```
+
+Alice keeps `K`.
+
+Alice sends `c` to Bob.
+
+## Simplified Flow
+
+```text
+Alice obtains Bob's encapsulation key.
+
+Alice runs ML-KEM.Encaps(ek).
+
+Alice gets:
+- ciphertext c
+- shared secret K
+
+Alice sends c to Bob.
+Alice keeps K as the shared secret.
+```
+
+The shared secret is not sent across the network.
+
+Only the ciphertext is sent.
+
+---
+
+# 3. ML-KEM Decapsulation
+
+## Purpose
+
+Decapsulation is performed by the owner of the decapsulation key.
+
+Bob receives the ciphertext from Alice.
+
+Bob runs:
+
+```text
+ML-KEM.Decaps(dk, c)
+```
+
+The output is:
+
+```text
+K' = shared secret key
+```
+
+If everything is valid and no corruption occurred, Bob’s `K'` should match Alice’s `K`.
+
+```text
+Alice has K.
+Bob has K'.
+
+If successful:
+K = K'
+```
+
+Now Alice and Bob share the same secret key material.
+
+---
+
+## End-to-End ML-KEM Flow
+
+```text
+Bob:
+  (ek, dk) = ML-KEM.KeyGen()
+
+Bob sends ek to Alice.
+
+Alice:
+  (c, K) = ML-KEM.Encaps(ek)
+
+Alice sends c to Bob.
+
+Bob:
+  K' = ML-KEM.Decaps(dk, c)
+
+Result:
+  Alice has K.
+  Bob has K'.
+
+If successful:
+  K = K'
+```
+
+The result is a shared 256-bit secret.
+
+That shared secret can then be used directly as a symmetric key or passed into a key derivation function, depending on the protocol.
+
+---
+
+## Visual Flow
+
+```mermaid
+sequenceDiagram
+    participant Alice
+    participant Bob
+
+    Bob->>Bob: ML-KEM.KeyGen()
+    Bob->>Alice: Encapsulation key ek
+
+    Alice->>Alice: ML-KEM.Encaps(ek)
+    Alice->>Alice: Produces ciphertext c and shared secret K
+    Alice->>Bob: Ciphertext c
+
+    Bob->>Bob: ML-KEM.Decaps(dk, c)
+    Bob->>Bob: Recovers shared secret K'
+
+    Note over Alice,Bob: If successful, K = K'
+```
+
+---
+
+## What Actually Gets Sent Over the Network?
+
+In the basic ML-KEM flow, these values may be sent publicly:
+
+```text
+Encapsulation key ek
+Ciphertext c
+```
+
+These values must remain secret:
+
+```text
+Decapsulation key dk
+Shared secret K
+Shared secret K'
+```
+
+The attacker may see the encapsulation key and ciphertext.
+
+The security goal is that the attacker still cannot recover the shared secret.
+
+---
+
+## How ML-KEM Builds the Shared Secret
+
+At a simplified level, ML-KEM builds the shared secret through a process like this:
+
+```text
+1. Generate or use an encapsulation key.
+2. Use randomness during encapsulation.
+3. Create a hidden message-like value.
+4. Encrypt that value using the lattice-based public-key encryption component.
+5. Derive a shared secret from that value.
+6. Send the ciphertext to the decapsulating party.
+7. The decapsulating party recovers the value.
+8. The decapsulating party derives the same shared secret.
+```
+
+The actual FIPS 203 algorithm is more precise and includes hashing, input checking, encoding, compression, and internal validation steps.
+
+The important concept:
+
+> ML-KEM does not send the shared secret. It sends a ciphertext that lets only the decapsulation-key holder derive the same shared secret.
+
+---
+
+## K-PKE: The Public-Key Encryption Component Inside ML-KEM
+
+ML-KEM is built using an internal public-key encryption component called **K-PKE**.
+
+K-PKE is not intended to be used by itself.
+
+It is used as a building block inside ML-KEM.
+
+The construction works roughly like this:
+
+```text
+K-PKE provides an encryption/decryption structure.
+
+ML-KEM wraps that structure into a secure key encapsulation mechanism.
+```
+
+This wrapping is important because plain public-key encryption is not enough for the stronger attack model that a KEM needs to handle.
+
+The standard specifically treats K-PKE as an internal component, not as a standalone encryption scheme for applications.
+
+---
+
+## The Fujisaki-Okamoto Transform
+
+ML-KEM uses a transformation based on the **Fujisaki-Okamoto transform**, often called the **FO transform**.
+
+The purpose of this transform is to turn a weaker public-key encryption style construction into a stronger KEM that can resist chosen-ciphertext attacks.
+
+A chosen-ciphertext attack is a situation where an attacker may be able to submit ciphertexts for decapsulation and observe behavior.
+
+A secure KEM must not leak useful information in that setting.
+
+The FO transform helps by making decapsulation validate the ciphertext in a careful way.
+
+A simplified explanation:
+
+```text
+1. Encapsulation creates a hidden value.
+2. That value is used to derive encryption randomness and the shared secret.
+3. Decapsulation decrypts the ciphertext.
+4. Decapsulation re-checks whether the ciphertext is consistent.
+5. If valid, derive the real shared secret.
+6. If invalid, derive a fallback secret instead of leaking information.
+```
+
+This helps prevent attackers from learning about the decapsulation key through malformed ciphertexts.
+
+---
+
+## Why Decapsulation Does Not Simply "Fail Openly"
+
+A dangerous KEM design could leak information by behaving differently when a ciphertext is valid versus invalid.
+
+For example, if an attacker can send many malformed ciphertexts and observe error behavior, timing differences, or different outputs, the attacker might learn something about the secret key.
+
+ML-KEM is designed so that decapsulation produces a shared secret output even when the ciphertext is invalid.
+
+In simplified terms:
+
+```text
+If ciphertext is valid:
+  Output real shared secret.
+
+If ciphertext is invalid:
+  Output fallback shared secret.
+```
+
+This reduces the risk that invalid ciphertexts become an oracle for attackers.
+
+The protocol using ML-KEM still needs to handle outputs properly, but the KEM itself is designed to avoid obvious leakage.
+
+---
+
+## Correctness
+
+Correctness means that when the protocol is used honestly, both sides should arrive at the same shared secret.
+
+In ML-KEM terms:
+
+```text
+(c, K) = ML-KEM.Encaps(ek)
+
+K' = ML-KEM.Decaps(dk, c)
+
+Correctness means:
+K = K'
+```
+
+There is a small theoretical probability of decapsulation failure because of the noise-based construction. However, the parameter sets are designed so that this probability is overwhelmingly small.
+
+For normal protocol-level thinking, the expectation is:
+
+```text
+Alice and Bob derive the same shared secret.
+```
+
+---
+
+## Security Goal: IND-CCA2 Security
+
+ML-KEM is designed to satisfy a strong KEM security goal known as **IND-CCA2 security**.
+
+That stands for:
+
+```text
+Indistinguishability under adaptive chosen-ciphertext attack
+```
+
+This means that even if an attacker can interact with a decapsulation process under certain rules, the attacker should not be able to distinguish the real shared secret from a random value.
+
+In simpler words:
+
+> Even an active attacker who can manipulate ciphertexts should not be able to recover or identify the shared secret.
+
+This is important because real networks are hostile environments.
+
+Attackers may not only observe traffic.
+
+They may also modify, replay, inject, or manipulate messages.
+
+---
+
+## Why ML-KEM Uses Lattices
+
+Lattice-based cryptography is one of the leading approaches for post-quantum cryptography.
+
+A lattice is a structured set of points in mathematical space.
+
+Some lattice problems appear to be hard even for quantum computers.
+
+ML-KEM is based on module lattices, which provide a balance between security and efficiency.
+
+The goal is to avoid relying on problems that quantum computers are expected to break, such as:
+
+```text
+Integer factorization
+Discrete logarithms
+Elliptic curve discrete logarithms
+```
+
+Instead, ML-KEM relies on MLWE, a lattice-related problem that is currently believed to resist both classical and quantum attacks.
+
+---
+
+## What Makes ML-KEM Efficient?
+
+ML-KEM is designed to be practical.
+
+One reason it is efficient is that it uses structured polynomial arithmetic.
+
+The algorithm also uses the **Number Theoretic Transform**, or **NTT**, to speed up polynomial multiplication.
+
+You can think of NTT as serving a role similar to how FFT helps speed up certain polynomial or signal operations, but in a modular arithmetic setting.
+
+The important idea:
+
+```text
+Polynomial multiplication can be expensive.
+
+NTT makes polynomial multiplication faster.
+
+ML-KEM uses this to improve performance.
+```
+
+This is one reason ML-KEM is practical enough for real-world protocols.
+
+---
+
+## Compression and Rounding
+
+ML-KEM uses compression and rounding as part of its ciphertext and key handling.
+
+This helps reduce sizes, but it must be done carefully.
+
+Because ML-KEM uses noisy mathematical structures, the receiver does not need to recover every internal value exactly. The receiver needs to recover enough information to derive the same shared secret.
+
+Compression helps reduce bandwidth while preserving correctness with overwhelming probability.
+
+This is part of the balance that makes ML-KEM practical:
+
+```text
+Security
++
+Correctness
++
+Performance
++
+Reasonable key and ciphertext sizes
+```
+
+---
+
+## How ML-KEM Would Fit Into TLS
+
+In TLS, ML-KEM would be used for key establishment.
+
+A simplified post-quantum TLS-like flow might look like this:
+
+```text
+1. Client connects to server.
+2. Server authenticates using a certificate/signature.
+3. Client and server use ML-KEM or hybrid key exchange to establish shared secret material.
+4. TLS derives session keys from the shared secret material.
+5. Application data is encrypted using symmetric encryption.
+```
+
+ML-KEM does not replace all of TLS.
+
+It replaces or supplements the key exchange part.
+
+TLS still needs:
+
+```text
+Certificates
+Authentication
+Digital signatures
+Transcript hashing
+Key derivation
+Symmetric encryption
+Record protection
+Protocol negotiation
+```
+
+ML-KEM is one important building block, not the entire protocol.
+
+---
+
+## Hybrid Key Exchange
+
+During migration, many systems may use hybrid key exchange.
+
+A hybrid approach combines classical key exchange with post-quantum key establishment.
+
+For example:
+
+```text
+ECDHE + ML-KEM
+```
+
+The idea is:
+
+```text
+Classical shared secret
++
+Post-quantum shared secret
+=
+Hybrid key material
+```
+
+The benefit is defense in depth.
+
+If the post-quantum algorithm later has an issue, the classical part may still protect against classical attackers.
+
+If the classical part is broken by quantum computing, the post-quantum part may still protect the session.
+
+Hybrid approaches are especially useful during the transition period because they allow systems to gain post-quantum protection without immediately abandoning all classical cryptography.
+
+---
+
+## ML-KEM and Harvest Now, Decrypt Later
+
+ML-KEM is directly relevant to the harvest now, decrypt later threat model.
+
+In today’s TLS, if a session uses ECDHE, an attacker may record the handshake and encrypted traffic.
+
+Today, the attacker may not be able to decrypt it.
+
+But if a future quantum computer can break ECDHE, the attacker may be able to recover the old session secret from the recorded handshake.
+
+ML-KEM is designed to avoid relying on ECDHE’s elliptic curve discrete logarithm assumption.
+
+So a post-quantum or hybrid key establishment method can reduce the risk that recorded traffic will be decrypted in the future.
+
+Important distinction:
+
+```text
+Forward secrecy protects against future long-term key compromise.
+
+ML-KEM helps protect against future quantum attacks on key establishment.
+```
+
+Both are important.
+
+They solve different problems.
+
+---
+
+## ML-KEM and Forward Secrecy
+
+ML-KEM can support forward secrecy when used with ephemeral ML-KEM keys or when used inside protocols that provide fresh key establishment per session.
+
+The key idea behind forward secrecy is:
+
+```text
+Each session should use fresh temporary key material.
+
+Compromise of long-term keys later should not reveal past session keys.
+```
+
+However, using ML-KEM does not automatically make every system forward-secret.
+
+The protocol design matters.
+
+Questions to ask:
+
+```text
+Are ML-KEM keys reused?
+Are they long-term or ephemeral?
+How are shared secrets combined?
+Are old secrets deleted from memory?
+Does the protocol derive fresh session keys?
+Are implementation details leaking key material?
+```
+
+ML-KEM gives a post-quantum key establishment primitive.
+
+The protocol must still use it correctly.
+
+---
+
+## ML-KEM Does Not Replace PKI
+
+ML-KEM helps establish shared secrets.
+
+PKI helps establish trust in identities.
+
+These are different jobs.
+
+| Component             | Job                                     |
+| --------------------- | --------------------------------------- |
+| ML-KEM                | Establish shared secret key material    |
+| Certificate           | Bind identity to a public key           |
+| Certificate Authority | Vouch for the certificate               |
+| Digital signature     | Authenticate data or handshake messages |
+| Symmetric encryption  | Protect application data                |
+
+A secure protocol usually needs more than key establishment.
+
+For example, if a client uses ML-KEM with an attacker’s encapsulation key, the client may establish a secure shared secret with the attacker.
+
+That is still a security failure.
+
+This is why authentication still matters.
+
+```text
+Encrypted communication with the wrong party is still wrong.
+```
+
+---
+
+## ML-KEM Does Not Replace Symmetric Encryption
+
+ML-KEM produces shared secret key material.
+
+It does not encrypt all application data directly.
+
+After ML-KEM establishes a shared secret, a protocol usually derives symmetric keys.
+
+Those symmetric keys are used with algorithms such as:
+
+```text
+AES-GCM
+ChaCha20-Poly1305
+```
+
+A simplified flow:
+
+```text
+ML-KEM shared secret
+        ↓
+Key Derivation Function
+        ↓
+Symmetric session keys
+        ↓
+Encrypted application data
+```
+
+This hybrid model is normal.
+
+Asymmetric or post-quantum cryptography helps establish the key.
+
+Symmetric cryptography protects the data efficiently.
+
+---
+
+## ML-KEM Does Not Replace Digital Signatures
+
+ML-KEM does not provide authentication by itself.
+
+For authentication, systems need signatures or another identity mechanism.
+
+In a post-quantum system, this may involve:
+
+```text
+ML-DSA
+SLH-DSA
+```
+
+In a transition system, this may involve classical signatures, post-quantum signatures, or hybrid authentication.
+
+A common mistake is to say:
+
+```text
+ML-KEM secures TLS by itself.
+```
+
+A better statement is:
+
+```text
+ML-KEM can provide post-quantum key establishment inside protocols like TLS, but authentication still requires certificates, signatures, or another trust mechanism.
+```
+
+---
+
+## What Happens If the Ciphertext Is Modified?
+
+If an attacker modifies the ML-KEM ciphertext in transit, Bob may decapsulate a different value.
+
+A well-designed protocol should detect this because the derived keys will not match the keys expected by the other party, and later authentication or transcript verification should fail.
+
+ML-KEM’s internal decapsulation process is designed to avoid leaking useful information through invalid ciphertexts.
+
+However, the larger protocol still needs to authenticate the handshake and verify that both sides derived the same keys.
+
+This is why KEMs are not used alone.
+
+They are used inside carefully designed protocols.
+
+---
+
+## Implementation Considerations
+
+ML-KEM should be implemented through vetted cryptographic libraries.
+
+Do not implement ML-KEM from scratch for production use unless you are building a validated cryptographic implementation with expert review.
+
+Important implementation considerations include:
+
+* Constant-time operations
+* Secure random number generation
+* Correct input validation
+* Protection of decapsulation keys
+* Proper zeroization of sensitive intermediate values
+* Resistance to side-channel attacks
+* Safe error handling
+* Correct use of approved parameter sets
+* Proper integration into protocols
+* Avoiding direct exposure of internal functions
+* Keeping up with NIST errata and validation guidance
+
+Post-quantum algorithms are not magic.
+
+They can still fail through bad implementation.
+
+---
+
+## Common Misunderstandings
+
+### Misunderstanding 1: ML-KEM Is Encryption for Messages
+
+ML-KEM is not used to encrypt large messages directly.
+
+It establishes shared secret key material.
+
+That key material can then be used with symmetric encryption.
+
+### Misunderstanding 2: ML-KEM Is a Signature Algorithm
+
+ML-KEM does not sign messages or certificates.
+
+For signatures, use a signature algorithm such as ML-DSA or SLH-DSA.
+
+### Misunderstanding 3: ML-KEM Proves Identity
+
+ML-KEM does not prove identity by itself.
+
+It needs to be combined with authentication.
+
+### Misunderstanding 4: ML-KEM Is the Same as Diffie-Hellman
+
+Both establish shared secrets, but the mechanics are different.
+
+Diffie-Hellman is key agreement.
+
+ML-KEM is key encapsulation.
+
+### Misunderstanding 5: Post-Quantum Means Invincible
+
+Post-quantum means designed to resist known quantum attacks.
+
+It does not mean impossible to break.
+
+It does not protect against bad implementation, poor randomness, endpoint compromise, weak protocols, or operational mistakes.
+
+---
+
+## Clean Mental Model
+
+Use this mental model:
+
+```text
+Diffie-Hellman:
+Both parties mix private and public values to agree on a shared secret.
+
+ML-KEM:
+One party uses the other party's encapsulation key to create a ciphertext and shared secret.
+The other party uses the decapsulation key to recover the same shared secret.
+
+Certificates/signatures:
+Prove who the party is.
+
+Symmetric encryption:
+Uses the derived keys to protect the actual data.
+```
+
+The simplest version:
+
+```text
+ML-KEM helps two parties get the same secret.
+
+It does not prove identity.
+
+It does not encrypt all data directly.
+
+It is a post-quantum key establishment building block.
+```
+
+---
+
+## Example Scenario
+
+Assume Alice wants to securely communicate with Bob using ML-KEM.
+
+Bob first generates a key pair:
+
+```text
+(ek, dk) = ML-KEM.KeyGen()
+```
+
+Bob keeps:
+
+```text
+dk
+```
+
+Bob shares:
+
+```text
+ek
+```
+
+Alice obtains Bob’s encapsulation key and runs:
+
+```text
+(c, K) = ML-KEM.Encaps(ek)
+```
+
+Alice sends Bob:
+
+```text
+c
+```
+
+Bob runs:
+
+```text
+K' = ML-KEM.Decaps(dk, c)
+```
+
+Now:
+
+```text
+Alice has K.
+Bob has K'.
+
+If everything worked correctly:
+K = K'
+```
+
+Then Alice and Bob can derive encryption keys from `K`.
+
+For example:
+
+```text
+K
+↓
+Key Derivation Function
+↓
+AES-GCM session keys
+↓
+Encrypted communication
+```
+
+---
+
+## ML-KEM in One Diagram
+
+```mermaid
+flowchart TD
+    A[Bob runs ML-KEM.KeyGen] --> B[Bob gets encapsulation key ek]
+    A --> C[Bob gets decapsulation key dk]
+
+    B --> D[Bob sends ek to Alice]
+    D --> E[Alice runs ML-KEM.Encaps ek]
+    E --> F[Alice gets ciphertext c]
+    E --> G[Alice gets shared secret K]
+
+    F --> H[Alice sends c to Bob]
+    H --> I[Bob runs ML-KEM.Decaps dk c]
+    C --> I
+    I --> J[Bob gets shared secret K']
+
+    G --> K[Both sides now have matching shared secret]
+    J --> K
+    K --> L[Use K or derived keys for symmetric cryptography]
+```
+
+---
+
+## How ML-KEM Fits Into the Bigger PQC Migration
+
+ML-KEM is one piece of post-quantum migration.
+
+Organizations also need to think about:
+
+```text
+Where is key exchange used?
+Where is TLS used?
+Where are certificates used?
+Where are RSA and ECC used?
+Which vendors support ML-KEM?
+Which systems support hybrid key exchange?
+Which systems require firmware or protocol upgrades?
+Which data has long-term confidentiality requirements?
+Which applications need post-quantum signatures?
+```
+
+ML-KEM helps with key establishment, especially confidentiality against harvest now, decrypt later attacks.
+
+But full PQC migration also requires:
+
+* Certificate inventory
+* Crypto asset inventory
+* Vendor readiness assessment
+* Protocol testing
+* Performance testing
+* Certificate lifecycle planning
+* Crypto agility
+* PQC signature planning
+* Hybrid deployment strategy
+
+ML-KEM is critical, but it is not the entire migration.
+
+---
+
+## Practical Enterprise Takeaways
+
+For enterprise security and PQC readiness, the most important points are:
+
+1. **ML-KEM is for key establishment.**
+   It helps two parties establish shared secret key material.
+
+2. **ML-KEM is not for signatures.**
+   It does not replace RSA, ECDSA, or EdDSA signatures directly. Post-quantum signatures are a separate topic.
+
+3. **ML-KEM is relevant to TLS.**
+   It can be used to provide post-quantum or hybrid key establishment in secure communication protocols.
+
+4. **ML-KEM helps address harvest now, decrypt later.**
+   It reduces reliance on ECDHE and other quantum-vulnerable key exchange methods.
+
+5. **Authentication is still required.**
+   ML-KEM does not prove identity by itself.
+
+6. **Implementation quality matters.**
+   Poor randomness, side-channel leakage, bad validation, or unsafe integration can break the security of a system.
+
+7. **Crypto agility matters.**
+   Organizations need to know where key establishment happens so they can migrate when standards and protocols change.
+
+---
+
+## Summary
+
+ML-KEM is NIST’s standardized post-quantum key encapsulation mechanism.
+
+It is used to establish shared secret key material over a public channel.
+
+The basic process is:
+
+```text
+1. Receiver generates an encapsulation key and decapsulation key.
+2. Sender uses the encapsulation key to create a ciphertext and shared secret.
+3. Sender sends the ciphertext to the receiver.
+4. Receiver uses the decapsulation key to recover the same shared secret.
+5. Both parties use that shared secret, or keys derived from it, for symmetric cryptography.
+```
+
+ML-KEM is based on the hardness of the Module Learning With Errors problem.
+
+It is designed to resist attacks from both classical and quantum computers.
+
+The cleanest way to remember it:
+
+```text
+ML-KEM solves the post-quantum key establishment problem.
+
+It does not solve authentication by itself.
+
+It does not replace symmetric encryption.
+
+It does not replace digital signatures.
+
+It gives protocols a quantum-resistant way to establish shared secret key material.
+```
+
+---
+
+## Final Takeaway
+
+ML-KEM is best understood as the post-quantum successor to the key establishment role currently played by algorithms like Diffie-Hellman and ECDHE.
+
+It allows two parties to create shared secret key material over an insecure channel without relying on math that quantum computers are expected to break.
+
+In modern secure communication, ML-KEM is not the whole system.
+
+It is one critical layer:
+
+```text
+ML-KEM establishes the shared secret.
+
+A KDF derives usable session keys.
+
+Symmetric encryption protects the data.
+
+Certificates and signatures authenticate the parties.
+
+PKI manages trust.
+
+Crypto agility enables migration.
+```
+
+That is how ML-KEM fits into the future of secure communication.
